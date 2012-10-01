@@ -2,7 +2,11 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <VirtualWire.h>
+
 #define maxLength 25
+
+#define doorstatusCycle 10000U
+#define serverCycle 1U
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
@@ -16,6 +20,24 @@ String inString = String(maxLength);
 EthernetServer server(80);
 const int triggerPin1 = 8;
 const int triggerPin2 = 9;
+
+unsigned long doorStatusLastMillis = 0;
+unsigned long serverLastMillis = 0;
+
+boolean door1OpenState = false;
+boolean door2OpenState = false;
+
+boolean cycleCheck(unsigned long *lastMillis, unsigned int cycle) 
+{
+  unsigned long currentMillis = millis();
+  if(currentMillis - *lastMillis >= cycle)
+  {
+    *lastMillis = currentMillis;
+    return true;
+  }
+  else
+    return false;
+}
 
 void setup() {
   Serial.begin(9600);
@@ -44,88 +66,97 @@ void setup() {
 
 void loop() {  
   
-   uint8_t buf[VW_MAX_MESSAGE_LEN];
-   uint8_t buflen = VW_MAX_MESSAGE_LEN;
-    
-  // listen for incoming clients
-  EthernetClient client = server.available();
-  if (client) {
-    Serial.println("new client");    
-    
-    // an http request ends with a blank line
-    boolean currentLineIsBlank = true;
-    while (client.connected()) {
-      if (client.available()) {
-        char c = client.read();
-        if (inString.length() < maxLength) {
-          inString += c;
-        } 
-        Serial.write(c);
-        // if you've gotten to the end of the line (received a newline
-        // character) and the line is blank, the http request has ended,
-        // so you can send a reply
-        if (c == '\n' && currentLineIsBlank) {
-          // send a standard http response header
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: application/json; charset=utf-8");
-          client.println("Connnection: Keep-Alive");
-          client.println();
-
-          if (vw_get_message(buf, &buflen)) // Non-blocking
-          {
-      	        int i;
+  if(cycleCheck(&doorStatusLastMillis, doorstatusCycle))
+  {    
+     uint8_t buf[VW_MAX_MESSAGE_LEN];
+     uint8_t buflen = VW_MAX_MESSAGE_LEN;
+     
+     if (vw_get_message(buf, &buflen)) // Non-blocking
+      {
+  	int i;
+  
+    	// Message with a good checksum received, dump it.
+    	Serial.print("Distance: ");
+    	
+    	for (i = 0; i < buflen; i++)
+    	{
+    	    Serial.write(buf[i]);
+    	    Serial.print(" ");
+    	}
+    	Serial.println("");
+      }
+  }
+  
+  if(cycleCheck(&serverLastMillis, serverCycle))
+  {
+    // listen for incoming clients
+    EthernetClient client = server.available();
+    if (client) {
+      Serial.println("new client");    
       
-        	// Message with a good checksum received, dump it.
-        	Serial.print("Distance: ");
-        	
-        	for (i = 0; i < buflen; i++)
-        	{
-        	    Serial.write(buf[i]);
-        	    Serial.print(" ");
-        	}
-        	Serial.println("");
+      // an http request ends with a blank line
+      boolean currentLineIsBlank = true;
+      while (client.connected()) {
+        if (client.available()) {
+          char c = client.read();
+          if (inString.length() < maxLength) {
+            inString += c;
+          } 
+          Serial.write(c);
+          // if you've gotten to the end of the line (received a newline
+          // character) and the line is blank, the http request has ended,
+          // so you can send a reply
+          if (c == '\n' && currentLineIsBlank) {
+            // send a standard http response header
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-Type: application/json; charset=utf-8");
+            client.println("Connnection: Keep-Alive");
+            client.println();
+  
+            
+                     
+            if (inString.indexOf("?door=1") > -1) {
+                Serial.println("*** Triggering door1.");
+                digitalWrite(triggerPin1, LOW);
+                delay(1000);
+                digitalWrite(triggerPin1, HIGH);
+                Serial.println("*** Complete.");
+                client.println("{\"Status\": \"Open\", \"Door\": \"1\"}");
+            }
+            else if (inString.indexOf("?door=2") > -1) {
+                Serial.println("*** Triggering door2.");
+                digitalWrite(triggerPin2, LOW);
+                delay(1000);
+                digitalWrite(triggerPin2, HIGH);
+                Serial.println("*** Complete.");
+                client.println("{\"Status\": \"Open\", \"Door\": \"2\"}");
+            }
+            else{
+                Serial.println("*** Trigger not found.");
+                client.println("{\"Status\": \"Ready\"}");
+            }
+            
+            break;
           }
-                   
-          if (inString.indexOf("?door=1") > -1) {
-              Serial.println("*** Triggering door1.");
-              digitalWrite(triggerPin1, LOW);
-              delay(1000);
-              digitalWrite(triggerPin1, HIGH);
-              Serial.println("*** Complete.");
-              client.println("{\"Status\": \"Open\", \"Door\": \"1\"}");
+          if (c == '\n') {
+            // you're starting a new line
+            currentLineIsBlank = true;
+          } 
+          else if (c != '\r') {
+            // you've gotten a character on the current line
+            currentLineIsBlank = false;
           }
-          else if (inString.indexOf("?door=2") > -1) {
-              Serial.println("*** Triggering door2.");
-              digitalWrite(triggerPin2, LOW);
-              delay(1000);
-              digitalWrite(triggerPin2, HIGH);
-              Serial.println("*** Complete.");
-              client.println("{\"Status\": \"Open\", \"Door\": \"2\"}");
-          }
-          else{
-              Serial.println("*** Trigger not found.");
-              client.println("{\"Status\": \"Ready\"}");
-          }
-          
-          break;
-        }
-        if (c == '\n') {
-          // you're starting a new line
-          currentLineIsBlank = true;
-        } 
-        else if (c != '\r') {
-          // you've gotten a character on the current line
-          currentLineIsBlank = false;
         }
       }
+      // give the web browser time to receive the data
+      //delay(1);
+      inString = "";
+      // close the connection:
+      client.stop();
+      Serial.println("client disonnected");
     }
-    // give the web browser time to receive the data
-    delay(1);
-    inString = "";
-    // close the connection:
-    client.stop();
-    Serial.println("client disonnected");
   }
 }
+ 
 
 
