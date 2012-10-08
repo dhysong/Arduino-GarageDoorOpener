@@ -129,11 +129,11 @@ void loop() {
                 delay(1000);
                 digitalWrite(triggerPin2, HIGH);
                 Serial.println("*** Complete.");
-                client.println("{\"Status\": \"Open\", \"Door\": \"2\"}");
+                client.println("{\"Status\": \"+ door1OpenState + \", \"Door\": \"2\"}");
             }
             else{
-                Serial.println("*** Trigger not found.");
-                client.println("{\"Status\": \"Ready\"}");
+                Serial.println("{\"Door1\": " + door1OpenState + "\", \"Door2\": " + door2OpenState + "\"}");
+                client.println("{\"Door1\": " + door1OpenState + "\", \"Door2\": " + door2OpenState + "\"}");
             }
             
             break;
