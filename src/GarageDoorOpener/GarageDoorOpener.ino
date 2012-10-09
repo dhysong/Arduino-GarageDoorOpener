@@ -1,4 +1,3 @@
-
 #include <SPI.h>
 #include <Ethernet.h>
 #include <VirtualWire.h>
@@ -24,8 +23,8 @@ const int triggerPin2 = 9;
 unsigned long doorStatusLastMillis = 0;
 unsigned long serverLastMillis = 0;
 
-boolean door1OpenState = false;
-boolean door2OpenState = false;
+String door1OpenState = "Open";
+String door2OpenState = "Open";
 
 boolean cycleCheck(unsigned long *lastMillis, unsigned int cycle) 
 {
@@ -76,14 +75,17 @@ void loop() {
   	int i;
   
     	// Message with a good checksum received, dump it.
-    	Serial.print("Distance: ");
-    	
+    	char Sensor1CharMsg[buflen]; 
+        Serial.println(buflen);
     	for (i = 0; i < buflen; i++)
     	{
-    	    Serial.write(buf[i]);
-    	    Serial.print(" ");
-    	}
-    	Serial.println("");
+    	    //Serial.print(buf[i]);            
+            Sensor1CharMsg[i] = char(buf[i]);
+    
+    	}    
+        door1OpenState = (Sensor1CharMsg);
+        door1OpenState.trim();
+        Serial.println(door1OpenState);
       }
   }
   
@@ -109,11 +111,10 @@ void loop() {
           if (c == '\n' && currentLineIsBlank) {
             // send a standard http response header
             client.println("HTTP/1.1 200 OK");
-            client.println("Content-Type: application/json; charset=utf-8");
+            client.println("Content-Type: application/javascript; charset=utf-8");
+            client.println("Access-Control-Allow-Origin: *");
             client.println("Connnection: Keep-Alive");
             client.println();
-  
-            
                      
             if (inString.indexOf("?door=1") > -1) {
                 Serial.println("*** Triggering door1.");
@@ -121,7 +122,7 @@ void loop() {
                 delay(1000);
                 digitalWrite(triggerPin1, HIGH);
                 Serial.println("*** Complete.");
-                client.println("{\"Status\": \"Open\", \"Door\": \"1\"}");
+                //client.println("{\"Door1\": \"" + door1OpenState + "\", \"Door2\": \"" + door2OpenState + "\"}");
             }
             else if (inString.indexOf("?door=2") > -1) {
                 Serial.println("*** Triggering door2.");
@@ -129,11 +130,12 @@ void loop() {
                 delay(1000);
                 digitalWrite(triggerPin2, HIGH);
                 Serial.println("*** Complete.");
-                client.println("{\"Status\": \"+ door1OpenState + \", \"Door\": \"2\"}");
+                //client.println("{\"Door1\": \"" + door1OpenState + "\", \"Door2\": \"" + door2OpenState + "\"}");
             }
-            else{
-                Serial.println("{\"Door1\": " + door1OpenState + "\", \"Door2\": " + door2OpenState + "\"}");
-                client.println("{\"Door1\": " + door1OpenState + "\", \"Door2\": " + door2OpenState + "\"}");
+            else if (inString.indexOf("?status") > -1) {
+                Serial.println(door1OpenState);
+                door1OpenState = "Closed";
+                client.println("{ \"Door1\": \"" + door1OpenState + "\", \"Door2\": \"Open\" }");
             }
             
             break;
