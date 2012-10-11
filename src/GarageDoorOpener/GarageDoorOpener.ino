@@ -133,8 +133,17 @@ void loop() {
                 //client.println("{\"Door1\": \"" + door1OpenState + "\", \"Door2\": \"" + door2OpenState + "\"}");
             }
             else if (inString.indexOf("?status") > -1) {
+                Serial.print("Door 1 state: ");
                 Serial.println(door1OpenState);
-                door1OpenState = "Closed";
+                
+                if(door1OpenState.indexOf("Open") >=0){ //Hack
+                  door1OpenState = "Open";
+                }
+                else{
+                  door1OpenState = "Closed";
+                }
+                
+                //door1OpenState = "Closed";
                 client.println("{ \"Door1\": \"" + door1OpenState + "\", \"Door2\": \"Open\" }");
             }
             
