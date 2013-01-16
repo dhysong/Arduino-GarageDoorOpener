@@ -23,6 +23,7 @@ const int triggerPin2 = 9;
 unsigned long doorStatusLastMillis = 0;
 unsigned long serverLastMillis = 0;
 
+String doorMsg = "00";
 String door1OpenState = "Open";
 String door2OpenState = "Open";
 
@@ -76,17 +77,19 @@ void loop() {
   
     	// Message with a good checksum received, dump it.
     	char Sensor1CharMsg[buflen]; 
-        Serial.println(buflen);
     	for (i = 0; i < buflen; i++)
     	{
     	    //Serial.print(buf[i]);            
             Sensor1CharMsg[i] = char(buf[i]);
     
     	}    
-        door1OpenState = (Sensor1CharMsg);
-        door1OpenState.trim();
-        Serial.println(door1OpenState);
+        doorMsg = (Sensor1CharMsg);
+        doorMsg.trim();
+        Serial.println(doorMsg);
       }
+  }
+  else{
+    doorMsg = "00"; 
   }
   
   if(cycleCheck(&serverLastMillis, serverCycle))
@@ -119,7 +122,7 @@ void loop() {
             if (inString.indexOf("?door=1") > -1) {
                 Serial.println("*** Triggering door1.");
                 digitalWrite(triggerPin1, LOW);
-                delay(1000);
+                delay(1500);
                 digitalWrite(triggerPin1, HIGH);
                 Serial.println("*** Complete.");
                 //client.println("{\"Door1\": \"" + door1OpenState + "\", \"Door2\": \"" + door2OpenState + "\"}");
@@ -127,24 +130,35 @@ void loop() {
             else if (inString.indexOf("?door=2") > -1) {
                 Serial.println("*** Triggering door2.");
                 digitalWrite(triggerPin2, LOW);
-                delay(1000);
+                delay(1500);
                 digitalWrite(triggerPin2, HIGH);
                 Serial.println("*** Complete.");
                 //client.println("{\"Door1\": \"" + door1OpenState + "\", \"Door2\": \"" + door2OpenState + "\"}");
             }
             else if (inString.indexOf("?status") > -1) {
                 Serial.print("Door 1 state: ");
-                Serial.println(door1OpenState);
+                Serial.println(doorMsg);
                 
-                if(door1OpenState.indexOf("Open") >=0){ //Hack
+                if(doorMsg.indexOf("00") >=0){ //Hack
                   door1OpenState = "Open";
+                  door2OpenState = "Open";
+                }
+                else if(doorMsg.indexOf("10") >=0){ //Hack
+                  door1OpenState = "Closed";
+                  door2OpenState = "Open";
+                }
+                else if(doorMsg.indexOf("01") >=0){ //Hack
+                  door1OpenState = "Closed";
+                  door2OpenState = "Open";
                 }
                 else{
                   door1OpenState = "Closed";
-                }
+                  door2OpenState = "Closed";
+                }                
                 
-                //door1OpenState = "Closed";
-                client.println("{ \"Door1\": \"" + door1OpenState + "\", \"Door2\": \"Open\" }");
+                String output = "{ \"Door1\": \"" + door1OpenState + "\", \"Door2\": \"" + door2OpenState + "\" }";
+                Serial.println(output);
+                client.println(output);
             }
             
             break;

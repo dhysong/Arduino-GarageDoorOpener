@@ -9,10 +9,12 @@
 // $Id: transmitter.pde,v 1.3 2009/03/30 00:07:24 mikem Exp $
 
 #include <VirtualWire.h>
-int magSensorPin = 12;
+int magSensorPin1 = 11;
+int magSensorPin2 = 12;
 int txPin = 7;
-int val = 0;     // variable for reading the sensor status
-String doorState = "Open";
+int val1 = 0;     // variable for reading the sensor status
+int val2 = 0;     // variable for reading the sensor status
+String doorState = "00";
 
 void setup()
 {
@@ -24,20 +26,29 @@ void setup()
     vw_setup(2400);	 // Bits per sec
     vw_set_tx_pin(txPin);                // pin 3 is used as the transmit data out into the TX Link module, change this to suit your needs. 
     
-    pinMode(magSensorPin, INPUT);
-    digitalWrite(magSensorPin, HIGH);
+    pinMode(magSensorPin1, INPUT);
+    digitalWrite(magSensorPin1, HIGH);
+    pinMode(magSensorPin2, INPUT);
+    digitalWrite(magSensorPin2, HIGH);
 }
 
 void loop()
 {    
-    val = digitalRead(magSensorPin);  // read input value
-    Serial.println(val);
-    if (val==LOW) {
-      doorState = "Closed";
+    val1 = digitalRead(magSensorPin1);  // read input value
+    val2 = digitalRead(magSensorPin2);  // read input value
+    if (val1==LOW && val2==LOW) {
+      doorState = "11";
+    }
+    else if (val1==LOW && val2==HIGH) {
+      doorState = "10";
+    }
+    else if (val1==HIGH && val2==LOW) {
+      doorState = "01";
     }
     else{
-      doorState = "Open";      
+      doorState = "00";
     }
+    Serial.println(doorState);
     char msg[sizeof(doorState) + 1];
     doorState.toCharArray(msg, sizeof(doorState) + 1);
 
