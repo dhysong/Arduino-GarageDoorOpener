@@ -15,6 +15,8 @@ int txPin = 7;
 int val1 = 0;     // variable for reading the sensor status
 int val2 = 0;     // variable for reading the sensor status
 String doorState = "00";
+int counter = 0;
+boolean stateChanged = false;
 
 void setup()
 {
@@ -37,24 +39,41 @@ void loop()
     val1 = digitalRead(magSensorPin1);  // read input value
     val2 = digitalRead(magSensorPin2);  // read input value
     if (val1==LOW && val2==LOW) {
+      if(doorState != "11") stateChanged = true;
       doorState = "11";
     }
     else if (val1==LOW && val2==HIGH) {
+      if(doorState != "10") stateChanged = true;
       doorState = "10";
     }
     else if (val1==HIGH && val2==LOW) {
+      if(doorState != "01") stateChanged = true;
       doorState = "01";
     }
     else{
+      if(doorState != "00") stateChanged = true;
       doorState = "00";
     }
     Serial.println(doorState);
-    char msg[sizeof(doorState) + 1];
-    doorState.toCharArray(msg, sizeof(doorState) + 1);
+    
+    //I want to read the state every 200ms, but send it every 30 seconds or when the state changes
+    if(counter == 0 || stateChanged == true){
+      Serial.println("Sending state:" + doorState);
+      char msg[sizeof(doorState) + 1];
+      doorState.toCharArray(msg, sizeof(doorState) + 1);
 
-    digitalWrite(13, true); // Flash a light to show transmitting
-    vw_send((uint8_t *)msg, strlen(msg));
-    vw_wait_tx(); // Wait until the whole message is gone
-    digitalWrite(13, false);
+      digitalWrite(13, true); // Flash a light to show transmitting
+      vw_send((uint8_t *)msg, strlen(msg));
+      vw_wait_tx(); // Wait until the whole message is gone
+      digitalWrite(13, false);
+      stateChanged = false;
+      counter++; 
+    }
+    else if(counter == 150){
+      counter = 0;
+    }
+    else{
+      counter++; 
+    }
     delay(200);
 }
